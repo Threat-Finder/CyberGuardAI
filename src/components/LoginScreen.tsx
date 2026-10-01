@@ -5,7 +5,6 @@ import {
   Eye,
   EyeOff,
   AlertCircle,
-  Key,
   ShieldCheck,
   Server,
   ArrowRight,
@@ -18,8 +17,8 @@ interface LoginScreenProps {
 }
 
 export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
-  const [username, setUsername] = useState('Admin');
-  const [password, setPassword] = useState('admin');
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -64,12 +63,6 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
     }
   };
 
-  const handleQuickFill = () => {
-    setUsername('Admin');
-    setPassword('admin');
-    setErrorMessage(null);
-  };
-
   return (
     <div className="min-h-screen w-full flex items-center justify-center p-4 bg-[#050508] relative overflow-hidden select-none font-sans">
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(183,148,246,0.12)_0%,_transparent_60%)] pointer-events-none" />
@@ -102,22 +95,6 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
               </div>
             </div>
           )}
-
-          <div className="p-3.5 rounded-xl bg-[#141420] border border-[#252538] text-xs text-[#A0A0B0] flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2">
-              <Key className="w-3.5 h-3.5 text-[#B794F6]" />
-              <span className="text-[11px]">
-                Credentials: <strong className="text-white font-mono">Admin</strong> / <strong className="text-white font-mono">admin</strong>
-              </span>
-            </div>
-            <button
-              type="button"
-              onClick={handleQuickFill}
-              className="text-[10px] text-[#B794F6] hover:text-white font-semibold underline cursor-pointer"
-            >
-              Autofill
-            </button>
-          </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-1.5">

@@ -218,10 +218,15 @@ export const ApiHealthIndicator: React.FC<ApiHealthIndicatorProps> = ({
 
       {/* Diagnostics Modal with 1 Live Real-Time Graph */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4 overflow-y-auto">
+        <div
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setIsModalOpen(false);
+          }}
+          className="fixed inset-0 z-[999] flex items-center justify-center bg-black/80 backdrop-blur-xl p-4 sm:p-6 overflow-y-auto animate-in fade-in duration-200"
+        >
           <div
             id="api-health-modal"
-            className="w-full max-w-2xl cyber-card rounded-2xl border border-[var(--panel-border)] bg-[var(--panel-bg)] shadow-[0_0_60px_rgba(0,0,0,0.85)] overflow-hidden transition-all animate-in fade-in zoom-in-95 duration-200"
+            className="w-full max-w-2xl cyber-card rounded-3xl border-2 border-[var(--accent-purple)]/60 bg-[var(--panel-bg)] shadow-[0_25px_80px_rgba(0,0,0,0.95),0_0_60px_rgba(183,148,246,0.35),0_0_0_1px_rgba(183,148,246,0.5)] overflow-hidden transition-all animate-in fade-in-50 zoom-in-95 duration-250 ease-out relative my-auto"
           >
             {/* Modal Header */}
             <div className="flex items-center justify-between p-5 border-b border-[var(--sidebar-border)] bg-[var(--navbar-bg)]">

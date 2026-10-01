@@ -7,9 +7,6 @@ import {
   Download,
   Terminal,
   Zap,
-  Sparkles,
-  LogOut,
-  ShieldCheck,
 } from 'lucide-react';
 import type { ScreenId } from './Sidebar.js';
 import { ThemeToggle } from './ThemeToggle.js';
@@ -26,8 +23,6 @@ interface TopNavbarProps {
   isScanning: boolean;
   isDarkMode: boolean;
   onToggleDarkMode: () => void;
-  onLogout?: () => void;
-  adminUsername?: string;
 }
 
 export const TopNavbar: React.FC<TopNavbarProps> = ({
@@ -41,8 +36,6 @@ export const TopNavbar: React.FC<TopNavbarProps> = ({
   isScanning,
   isDarkMode,
   onToggleDarkMode,
-  onLogout,
-  adminUsername,
 }) => {
   const getScreenTitle = () => {
     switch (currentScreen) {
@@ -129,25 +122,6 @@ export const TopNavbar: React.FC<TopNavbarProps> = ({
           <Download className="w-3.5 h-3.5" />
           <span className="hidden sm:inline">Export Report</span>
         </button>
-
-        {/* Admin Session Badge & Sign Out Button */}
-        {onLogout && (
-          <div className="flex items-center gap-1.5 pl-1.5 border-l border-[var(--panel-border)]">
-            <div className="hidden lg:flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-[11px] font-mono font-bold">
-              <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-              <span>{adminUsername || 'Admin'}</span>
-            </div>
-            <button
-              id="navbar-admin-logout-btn"
-              onClick={onLogout}
-              className="p-1.5 px-2 rounded-xl bg-[var(--panel-bg)] border border-[var(--panel-border)] hover:border-red-500/50 hover:bg-red-950/20 text-[var(--text-body)] hover:text-red-400 text-xs font-semibold transition-all cursor-pointer shadow-sm flex items-center gap-1"
-              title="Sign Out of Admin Console"
-            >
-              <LogOut className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline text-[11px]">Logout</span>
-            </button>
-          </div>
-        )}
       </div>
     </header>
   );

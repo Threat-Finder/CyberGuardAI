@@ -143,6 +143,7 @@ export default function App() {
   const [isContinuousMonitoring, setIsContinuousMonitoring] = useState(false);
   const [monitoringIntervalSec, setMonitoringIntervalSec] = useState(15);
   const monitorTimerRef = useRef<any>(null);
+  const [scanBlockedMessage, setScanBlockedMessage] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchInitialData = async () => {
@@ -231,6 +232,24 @@ export default function App() {
   };
 
   const handleStartScan = async (targetUrl: string, scanType: 'quick' | 'full' | 'stealth' = 'full') => {
+    // 1. Enforce API requirement: Without active API no scan can be started
+    setScanBlockedMessage(null);
+    try {
+      const statusRes = await fetch('/api/gemini-status');
+      if (statusRes.ok) {
+        const statusData = await statusRes.json();
+        if (!statusData.live) {
+          setScanBlockedMessage('Scan Blocked: Gemini API connection is offline. Active API connection is required to start a security assessment.');
+          window.dispatchEvent(new CustomEvent('open-api-health'));
+          return;
+        }
+      }
+    } catch {
+      setScanBlockedMessage('Scan Blocked: Unable to verify Gemini API connection.');
+      window.dispatchEvent(new CustomEvent('open-api-health'));
+      return;
+    }
+
     setIsScanning(true);
     setScanPhase('1/5: Initializing socket & verifying TLS certificate...');
 
@@ -259,6 +278,13 @@ export default function App() {
           scanType,
         }),
       });
+
+      if (response.status === 403) {
+        const errJson = await response.json().catch(() => ({}));
+        setScanBlockedMessage(errJson.error || 'Scan blocked: Active Gemini API connection is required.');
+        window.dispatchEvent(new CustomEvent('open-api-health'));
+        throw new Error(errJson.error || 'Scan blocked: Active Gemini API connection is required.');
+      }
 
       if (!response.ok) {
         const errJson = await response.json().catch(() => ({}));
@@ -379,6 +405,29 @@ export default function App() {
         />
 
         <main className="flex-1 overflow-y-auto px-6 py-6 space-y-6">
+          {scanBlockedMessage && (
+            <div className="p-4 rounded-xl bg-rose-500/10 border border-rose-500/40 text-rose-300 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-md animate-in fade-in">
+              <div className="flex items-center gap-3">
+                <span className="w-2.5 h-2.5 rounded-full bg-rose-400 animate-pulse shrink-0" />
+                <span className="text-xs font-semibold">{scanBlockedMessage}</span>
+              </div>
+              <div className="flex items-center gap-2 self-end sm:self-auto">
+                <button
+                  onClick={() => window.dispatchEvent(new CustomEvent('open-api-health'))}
+                  className="px-3 py-1.5 rounded-xl text-xs font-bold bg-rose-500/20 hover:bg-rose-500/30 text-rose-200 border border-rose-500/40 cursor-pointer"
+                >
+                  Inspect API Health
+                </button>
+                <button
+                  onClick={() => setScanBlockedMessage(null)}
+                  className="text-xs text-rose-400 hover:text-white px-2 py-1 cursor-pointer"
+                >
+                  Dismiss
+                </button>
+              </div>
+            </div>
+          )}
+
           {currentScan?.triggeredAlerts && currentScan.triggeredAlerts.length > 0 && (
             <TriggeredAlertsBanner
               alerts={currentScan.triggeredAlerts}

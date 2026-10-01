@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Globe,
   Zap,
@@ -10,6 +10,8 @@ import {
   Info,
   Play,
   RefreshCw,
+  ShieldAlert,
+  Activity,
 } from 'lucide-react';
 import type { ScanResult } from '../../types.js';
 import { ScanProgressBar } from '../ScanProgressBar.js';
@@ -39,9 +41,47 @@ export const NewScanScreen: React.FC<NewScanScreenProps> = ({
   const [auditBanners, setAuditBanners] = useState(true);
   const [auditRobots, setAuditRobots] = useState(true);
 
+  const [isApiLive, setIsApiLive] = useState<boolean>(true);
+  const [apiErrorMessage, setApiErrorMessage] = useState<string | null>(null);
+
+  // Check API status
+  const verifyApiStatus = async () => {
+    try {
+      const res = await fetch('/api/gemini-status');
+      if (res.ok) {
+        const data = await res.json();
+        setIsApiLive(!!data.live);
+        if (!data.live) {
+          setApiErrorMessage(data.message || 'Gemini API is currently unreachable.');
+        } else {
+          setApiErrorMessage(null);
+        }
+      }
+    } catch {
+      setIsApiLive(false);
+      setApiErrorMessage('Failed to connect to API gateway.');
+    }
+  };
+
+  useEffect(() => {
+    verifyApiStatus();
+    const interval = setInterval(verifyApiStatus, 15000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const openHealthModal = () => {
+    window.dispatchEvent(new CustomEvent('open-api-health'));
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!targetInput.trim() || isScanning) return;
+
+    if (!isApiLive) {
+      openHealthModal();
+      return;
+    }
+
     await onStartScan(targetInput.trim(), scanType);
   };
 
@@ -69,6 +109,30 @@ export const NewScanScreen: React.FC<NewScanScreenProps> = ({
           </button>
         )}
       </div>
+
+      {/* Without API Warning Banner if offline */}
+      {!isApiLive && (
+        <div className="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/40 text-rose-300 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-lg">
+          <div className="flex items-center gap-3">
+            <ShieldAlert className="w-5 h-5 text-rose-400 shrink-0" />
+            <div>
+              <div className="text-xs font-bold uppercase tracking-wider text-rose-200">
+                Scan Initiation Locked: API Connectivity Required
+              </div>
+              <p className="text-[11px] text-rose-300/90 mt-0.5">
+                {apiErrorMessage || 'Scanning is blocked because active Gemini API connectivity is required. Please check API Health & Diagnostics.'}
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={openHealthModal}
+            className="px-4 py-2 rounded-xl text-xs font-bold bg-rose-500/20 hover:bg-rose-500/30 text-rose-200 border border-rose-500/40 transition-colors cursor-pointer flex items-center gap-1.5 shrink-0"
+          >
+            <Activity className="w-3.5 h-3.5" />
+            <span>Open API Health Monitor</span>
+          </button>
+        </div>
+      )}
 
       {(isScanning || currentScan) && (
         <ScanProgressBar
@@ -345,7 +409,11 @@ export const NewScanScreen: React.FC<NewScanScreenProps> = ({
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-2">
           <div className="flex items-center gap-2 text-xs text-[#A0A0B0]">
             <Info className="w-4 h-4 text-[#B794F6] shrink-0" />
-            <span>Passive inspection only. Safe for production environments.</span>
+            <span>
+              {isApiLive
+                ? 'Passive inspection with Gemini AI active. Production safe.'
+                : 'API offline: Scan blocked until Gemini API connection is established.'}
+            </span>
           </div>
 
           <div className="flex items-center gap-3 self-end sm:self-auto">
@@ -364,13 +432,23 @@ export const NewScanScreen: React.FC<NewScanScreenProps> = ({
             <button
               id="launch-scan-cta-btn"
               type="submit"
-              disabled={isScanning || !targetInput.trim()}
-              className="flex items-center gap-2 px-8 py-3.5 rounded-xl text-sm font-bold cyber-button-purple cursor-pointer shadow-[0_0_20px_rgba(183,148,246,0.4)] disabled:opacity-50"
+              disabled={isScanning || !targetInput.trim() || !isApiLive}
+              className={`flex items-center gap-2 px-8 py-3.5 rounded-xl text-sm font-bold transition-all shadow-[0_0_20px_rgba(183,148,246,0.4)] ${
+                !isApiLive
+                  ? 'bg-slate-800 text-slate-400 border border-slate-700 cursor-not-allowed opacity-60'
+                  : 'cyber-button-purple cursor-pointer'
+              }`}
+              title={!isApiLive ? 'API connectivity required to start scan' : 'Launch scan'}
             >
               {isScanning ? (
                 <>
                   <RefreshCw className="w-4 h-4 animate-spin" />
                   <span>Scanning...</span>
+                </>
+              ) : !isApiLive ? (
+                <>
+                  <ShieldAlert className="w-4 h-4 text-rose-400" />
+                  <span>API Required to Scan</span>
                 </>
               ) : (
                 <>

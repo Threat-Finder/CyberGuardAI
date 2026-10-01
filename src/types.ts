@@ -131,6 +131,17 @@ export interface ThreatVectorMetric {
   vulnerabilitiesCount: number;
 }
 
+export interface ApiTelemetryPoint {
+  id: string;
+  time: string;
+  timestamp: number;
+  latencyMs: number;
+  connectivityPercent: number; // 0 or 100
+  status: 'OPERATIONAL' | 'DEGRADED' | 'OFFLINE';
+  live: boolean;
+  httpStatus?: number;
+}
+
 export interface ApiHealthStatus {
   live: boolean;
   status: 'OPERATIONAL' | 'DEGRADED' | 'OFFLINE';
@@ -141,4 +152,5 @@ export interface ApiHealthStatus {
   quotaStatus: 'Healthy' | 'Warning' | 'Exceeded';
   endpoint: string;
   proxyProtected: boolean;
+  history?: ApiTelemetryPoint[];
 }

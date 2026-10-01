@@ -1,0 +1,6 @@
+{
+  "name": "Cyber Guard - VAPT & Security Metrics Dashboard",
+  "description": "Enterprise Vulnerability Assessment and Penetration Testing (VAPT) platform with real-time attack surface telemetry, CVE intelligence, API health monitoring, and AI-driven remediation.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

@@ -1,0 +1,123 @@
+@import "tailwindcss";
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* Theme CSS Variables */
+:root {
+  --app-bg: #F8F9FD;
+  --panel-bg: #FFFFFF;
+  --panel-border: rgba(139, 92, 246, 0.22);
+  --panel-border-hover: rgba(139, 92, 246, 0.45);
+  --text-heading: #0F172A;
+  --text-body: #475569;
+  --accent-purple: #8B5CF6;
+  --accent-btn-bg: #8B5CF6;
+  --accent-btn-text: #FFFFFF;
+  --sidebar-bg: #FFFFFF;
+  --sidebar-border: #E2E8F0;
+  --navbar-bg: rgba(255, 255, 255, 0.9);
+  --subtle-bg: #F1F5F9;
+  --code-bg: #0F172A;
+  --terminal-bg: #08080C;
+}
+
+:root.dark, .dark {
+  --app-bg: #0A0A0F;
+  --panel-bg: #141420;
+  --panel-border: rgba(183, 148, 246, 0.14);
+  --panel-border-hover: rgba(183, 148, 246, 0.35);
+  --text-heading: #FFFFFF;
+  --text-body: #A0A0B0;
+  --accent-purple: #B794F6;
+  --accent-btn-bg: #B794F6;
+  --accent-btn-text: #0A0A0F;
+  --sidebar-bg: #141420;
+  --sidebar-border: #252538;
+  --navbar-bg: rgba(10, 10, 15, 0.9);
+  --subtle-bg: #0A0A0F;
+  --code-bg: #08080C;
+  --terminal-bg: #08080C;
+}
+
+body {
+  background-color: var(--app-bg);
+  color: var(--text-body);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+  overflow-x: hidden;
+  transition: background-color 0.25s ease, color 0.25s ease;
+}
+
+/* Headings font */
+h1, h2, h3, h4, h5, h6 {
+  color: var(--text-heading);
+  font-family: 'Inter', sans-serif;
+  transition: color 0.25s ease;
+}
+
+/* Monospace font for scan results & terminal output */
+code, pre, .font-mono {
+  font-family: 'JetBrains Mono', monospace !important;
+}
+
+/* Custom Cyber Guard Cards */
+.cyber-card {
+  background-color: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.08), 0 0 15px rgba(183, 148, 246, 0.05);
+  transition: all 0.25s ease-in-out;
+}
+
+.dark .cyber-card {
+  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.5), 0 0 15px rgba(183, 148, 246, 0.04);
+}
+
+.cyber-card:hover {
+  border-color: var(--panel-border-hover);
+  box-shadow: 0 8px 30px -4px rgba(0, 0, 0, 0.12), 0 0 20px rgba(183, 148, 246, 0.1);
+}
+
+.cyber-button-purple {
+  background-color: var(--accent-btn-bg);
+  color: var(--accent-btn-text);
+  font-weight: 700;
+  box-shadow: 0 0 15px rgba(183, 148, 246, 0.35);
+  transition: all 0.2s ease-in-out;
+}
+
+.cyber-button-purple:hover {
+  opacity: 0.95;
+  box-shadow: 0 0 25px rgba(183, 148, 246, 0.6);
+  transform: translateY(-1px);
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--app-bg);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--panel-border);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--accent-purple);
+}
+
+@media print {
+  body {
+    background: #ffffff !important;
+    color: #0f172a !important;
+  }
+  header,
+  footer,
+  aside,
+  .no-print {
+    display: none !important;
+  }
+}

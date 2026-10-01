@@ -1061,21 +1061,34 @@ app.post('/api/reports/word', (req, res) => {
 });
 
 // --- VITE MIDDLEWARE (DEV) OR STATIC BUILD (PROD) ---
-if (process.env.NODE_ENV !== 'production') {
+import fs from 'fs';
+
+const distPath = path.resolve(__dirname, 'dist');
+const hasDist = fs.existsSync(distPath) && fs.existsSync(path.resolve(distPath, 'index.html'));
+
+if (process.env.NODE_ENV === 'production' && hasDist) {
+  app.use(express.static(distPath));
+  app.get('*', (_req, res) => {
+    res.sendFile(path.resolve(distPath, 'index.html'));
+  });
+} else {
   const { createServer } = await import('vite');
   const vite = await createServer({
     server: { middlewareMode: true },
     appType: 'spa',
   });
   app.use(vite.middlewares);
-} else {
-  app.use(express.static(path.resolve(__dirname, 'dist')));
-  app.get('*', (_req, res) => {
-    res.sendFile(path.resolve(__dirname, 'dist', 'index.html'));
-  });
 }
 
 // Start Server on 0.0.0.0 and port 3000
-app.listen(PORT, '0.0.0.0', () => {
+const server = app.listen(PORT, '0.0.0.0', () => {
   console.log(`[Cyber Guard] Server running on http://0.0.0.0:${PORT}`);
+});
+
+server.on('error', (err: any) => {
+  if (err.code === 'EADDRINUSE') {
+    console.warn(`[Cyber Guard] Port ${PORT} is already in use by an active server instance.`);
+  } else {
+    console.error('[Cyber Guard] Server error:', err);
+  }
 });

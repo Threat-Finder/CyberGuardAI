@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "tsx server.ts",
+    "prestart": "node -e \"const fs = require('fs'); if (!fs.existsSync('node_modules/express') || !fs.existsSync('node_modules/vite')) { console.log('[Cyber Guard] Missing dependencies. Installing via npm install...'); require('child_process').execSync('npm install', { stdio: 'inherit' }); }\"",
     "start": "node server.ts",
     "build": "vite build",
     "preview": "vite preview",

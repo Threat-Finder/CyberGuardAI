@@ -12,6 +12,8 @@ import {
   RefreshCw,
   ShieldAlert,
   Activity,
+  Key,
+  Eye,
 } from 'lucide-react';
 import type { ScanResult } from '../../types.js';
 import { ScanProgressBar } from '../ScanProgressBar.js';
@@ -44,6 +46,12 @@ export const NewScanScreen: React.FC<NewScanScreenProps> = ({
   const [isApiLive, setIsApiLive] = useState<boolean>(true);
   const [apiErrorMessage, setApiErrorMessage] = useState<string | null>(null);
 
+  // Quick API Key Activation state
+  const [quickKeyInput, setQuickKeyInput] = useState('');
+  const [showQuickKey, setShowQuickKey] = useState(false);
+  const [isActivatingQuickKey, setIsActivatingQuickKey] = useState(false);
+  const [quickKeyError, setQuickKeyError] = useState<string | null>(null);
+
   // Check API status
   const verifyApiStatus = async () => {
     try {
@@ -66,8 +74,46 @@ export const NewScanScreen: React.FC<NewScanScreenProps> = ({
   useEffect(() => {
     verifyApiStatus();
     const interval = setInterval(verifyApiStatus, 15000);
-    return () => clearInterval(interval);
+
+    const handleKeyUpdated = () => {
+      verifyApiStatus();
+    };
+    window.addEventListener('gemini-key-updated', handleKeyUpdated);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('gemini-key-updated', handleKeyUpdated);
+    };
   }, []);
+
+  const handleQuickActivateKey = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!quickKeyInput.trim() || isActivatingQuickKey) return;
+
+    setIsActivatingQuickKey(true);
+    setQuickKeyError(null);
+
+    try {
+      const res = await fetch('/api/set-api-key', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ apiKey: quickKeyInput.trim() }),
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || 'Failed to authenticate and activate Gemini API Key.');
+      }
+
+      setQuickKeyInput('');
+      await verifyApiStatus();
+      window.dispatchEvent(new CustomEvent('gemini-key-updated'));
+    } catch (err: any) {
+      setQuickKeyError(err.message || 'Failed to activate API Key.');
+    } finally {
+      setIsActivatingQuickKey(false);
+    }
+  };
 
   const openHealthModal = () => {
     window.dispatchEvent(new CustomEvent('open-api-health'));
@@ -112,25 +158,83 @@ export const NewScanScreen: React.FC<NewScanScreenProps> = ({
 
       {/* Without API Warning Banner if offline */}
       {!isApiLive && (
-        <div className="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/40 text-rose-300 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-lg">
-          <div className="flex items-center gap-3">
-            <ShieldAlert className="w-5 h-5 text-rose-400 shrink-0" />
-            <div>
-              <div className="text-xs font-bold uppercase tracking-wider text-rose-200">
-                Scan Initiation Locked: API Connectivity Required
+        <div className="p-5 rounded-2xl bg-rose-500/10 border-2 border-rose-500/40 text-rose-300 shadow-xl space-y-3.5 animate-in fade-in">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <ShieldAlert className="w-5 h-5 text-rose-400 shrink-0" />
+              <div>
+                <div className="text-xs font-bold uppercase tracking-wider text-rose-200">
+                  Scan Initiation Locked: API Connectivity Required
+                </div>
+                <p className="text-[11px] text-rose-300/90 mt-0.5">
+                  {apiErrorMessage || 'Scanning is blocked because active Gemini API connectivity is required.'}
+                </p>
               </div>
-              <p className="text-[11px] text-rose-300/90 mt-0.5">
-                {apiErrorMessage || 'Scanning is blocked because active Gemini API connectivity is required. Please check API Health & Diagnostics.'}
-              </p>
             </div>
+            <button
+              type="button"
+              onClick={openHealthModal}
+              className="px-4 py-2 rounded-xl text-xs font-bold bg-rose-500/20 hover:bg-rose-500/30 text-rose-200 border border-rose-500/40 transition-colors cursor-pointer flex items-center gap-1.5 shrink-0 self-start sm:self-auto"
+            >
+              <Activity className="w-3.5 h-3.5" />
+              <span>Open API Health Monitor</span>
+            </button>
           </div>
-          <button
-            onClick={openHealthModal}
-            className="px-4 py-2 rounded-xl text-xs font-bold bg-rose-500/20 hover:bg-rose-500/30 text-rose-200 border border-rose-500/40 transition-colors cursor-pointer flex items-center gap-1.5 shrink-0"
-          >
-            <Activity className="w-3.5 h-3.5" />
-            <span>Open API Health Monitor</span>
-          </button>
+
+          {/* Quick API Key Ingestion Area directly in the banner */}
+          <div className="pt-3 border-t border-rose-500/20">
+            <div className="flex items-center justify-between pb-1.5">
+              <span className="text-[11px] font-bold text-rose-200 flex items-center gap-1.5">
+                <Key className="w-3.5 h-3.5 text-rose-400" />
+                <span>Forgot to add API Key before starting? Add it here to unlock scans immediately:</span>
+              </span>
+              <span className="text-[10px] font-mono text-rose-300/70">
+                Zero Restart Required
+              </span>
+            </div>
+            <form onSubmit={handleQuickActivateKey} className="flex flex-col sm:flex-row gap-2 mt-1">
+              <div className="relative flex-1">
+                <input
+                  type={showQuickKey ? 'text' : 'password'}
+                  value={quickKeyInput}
+                  onChange={(e) => {
+                    setQuickKeyInput(e.target.value);
+                    setQuickKeyError(null);
+                  }}
+                  placeholder="Paste Gemini API Key (e.g. AIzaSy...)"
+                  className="w-full pl-3.5 pr-9 py-2 rounded-xl bg-black/50 border border-rose-500/40 text-xs font-mono text-white placeholder-rose-300/40 focus:outline-none focus:border-rose-400"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowQuickKey(!showQuickKey)}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-rose-300/70 hover:text-white p-1 cursor-pointer"
+                  title={showQuickKey ? 'Hide Key' : 'Show Key'}
+                >
+                  {showQuickKey ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                </button>
+              </div>
+              <button
+                type="submit"
+                disabled={isActivatingQuickKey || !quickKeyInput.trim()}
+                className="px-4 py-2 rounded-xl text-xs font-bold bg-rose-600 hover:bg-rose-500 text-white disabled:opacity-50 transition-colors flex items-center justify-center gap-1.5 shrink-0 cursor-pointer shadow-sm"
+              >
+                {isActivatingQuickKey ? (
+                  <>
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                    <span>Activating...</span>
+                  </>
+                ) : (
+                  <>
+                    <Key className="w-3.5 h-3.5" />
+                    <span>Activate & Unlock Scanner</span>
+                  </>
+                )}
+              </button>
+            </form>
+            {quickKeyError && (
+              <p className="text-[11px] text-rose-400 mt-1.5">{quickKeyError}</p>
+            )}
+          </div>
         </div>
       )}
 

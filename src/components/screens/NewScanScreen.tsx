@@ -19,7 +19,11 @@ import type { ScanResult } from '../../types.js';
 import { ScanProgressBar } from '../ScanProgressBar.js';
 
 interface NewScanScreenProps {
-  onStartScan: (targetUrl: string, scanType: 'quick' | 'full' | 'stealth') => Promise<void>;
+  onStartScan: (
+    targetUrl: string,
+    scanType: 'quick' | 'full' | 'stealth',
+    wafStrategy: 'through-waf' | 'allowlist-origin'
+  ) => Promise<void>;
   isScanning: boolean;
   scanPhase: string;
   currentScan: ScanResult | null;
@@ -128,7 +132,7 @@ export const NewScanScreen: React.FC<NewScanScreenProps> = ({
       return;
     }
 
-    await onStartScan(targetInput.trim(), scanType);
+    await onStartScan(targetInput.trim(), scanType, wafStrategy);
   };
 
   return (
@@ -332,15 +336,16 @@ export const NewScanScreen: React.FC<NewScanScreenProps> = ({
             >
               <div>
                 <div className="flex items-center justify-between">
-                  <span className="font-bold text-white text-sm">Quick Scan</span>
+                  <span className="font-bold text-white text-sm">1. Quick Scan</span>
                   <Zap className="w-4 h-4 text-[#B794F6]" />
                 </div>
+                <div className="text-[10px] text-[#B794F6] font-mono mt-0.5">Simple Basic Scan</div>
                 <p className="mt-2 text-xs text-[#A0A0B0] leading-relaxed">
-                  Perimeter & WAF assessment: Scans through active WAF layers, verifying edge filters, SSL expiry, and immediate perimeter leaks.
+                  Fast perimeter assessment checking baseline HTTP response headers, immediate server banner exposure, and HTTPS upgrade.
                 </p>
               </div>
               <div className="mt-4 pt-2 border-t border-[#252538] text-[10px] font-mono text-[#B794F6]">
-                Duration: ~3-5 seconds • WAF-Aware
+                Duration: ~2-3 seconds • Essential Baseline
               </div>
             </div>
 
@@ -354,15 +359,16 @@ export const NewScanScreen: React.FC<NewScanScreenProps> = ({
             >
               <div>
                 <div className="flex items-center justify-between">
-                  <span className="font-bold text-white text-sm">Full Assessment</span>
+                  <span className="font-bold text-white text-sm">2. Full Assessment</span>
                   <Shield className="w-4 h-4 text-emerald-400" />
                 </div>
+                <div className="text-[10px] text-emerald-400 font-mono mt-0.5">Detailed Scan</div>
                 <p className="mt-2 text-xs text-[#A0A0B0] leading-relaxed">
-                  Comprehensive audit evaluating all 7 vectors with origin analysis. Supports WAF allowlisting coordination for origin inspection.
+                  Deep multi-vector audit covering all defensive security headers, cookie security flags, full SSL/TLS certificates, and robots.txt hygiene.
                 </p>
               </div>
               <div className="mt-4 pt-2 border-t border-[#252538] text-[10px] font-mono text-emerald-400">
-                Recommended • Origin Depth
+                Recommended • Full Multi-Vector Depth
               </div>
             </div>
 
@@ -376,15 +382,16 @@ export const NewScanScreen: React.FC<NewScanScreenProps> = ({
             >
               <div>
                 <div className="flex items-center justify-between">
-                  <span className="font-bold text-white text-sm">Stealth Mode</span>
+                  <span className="font-bold text-white text-sm">3. Stealth Mode</span>
                   <EyeOff className="w-4 h-4 text-purple-400" />
                 </div>
+                <div className="text-[10px] text-purple-400 font-mono mt-0.5">Full Assessment + Premium Checks</div>
                 <p className="mt-2 text-xs text-[#A0A0B0] leading-relaxed">
-                  Passive asset discovery: Maps host IPs, certificate SAN subdomains, TLS certificates, and header security benchmarks without alert noise.
+                  Full Assessment including SSL certificates and all standard controls, plus 3 Premium checks: DNSSEC & CAA authorization, Ephemeral Forward Secrecy (PFS), and SRI CDN dependency defense.
                 </p>
               </div>
               <div className="mt-4 pt-2 border-t border-[#252538] text-[10px] font-mono text-purple-400">
-                Zero Intrusion • Asset Recon
+                Full SSL + Premium Deep Audit
               </div>
             </div>
           </div>
@@ -395,11 +402,11 @@ export const NewScanScreen: React.FC<NewScanScreenProps> = ({
             <div className="flex items-center gap-2">
               <Shield className="w-4 h-4 text-[#B794F6]" />
               <span className="text-sm font-bold text-white uppercase tracking-wider">
-                WAF Routing & Inspection Strategy
+                WAF Routing & Perimeter Strategy
               </span>
             </div>
             <span className="text-[11px] text-[#B794F6] font-mono">
-              Perimeter Routing
+              2 Routing Modes
             </span>
           </div>
 
@@ -413,13 +420,13 @@ export const NewScanScreen: React.FC<NewScanScreenProps> = ({
               }`}
             >
               <div className="flex items-center justify-between">
-                <span className="font-bold text-white text-xs">VA Scan Through WAF</span>
+                <span className="font-bold text-white text-xs">4. VA Scan Through WAF</span>
                 <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
                   Standard Mode
                 </span>
               </div>
               <p className="mt-2 text-xs text-[#A0A0B0] leading-relaxed">
-                Inspects external attack surface through active WAF layers (Cloudflare, AWS WAF, Akamai) to assess edge filtering rules.
+                Scan through the WAF: Inspects external perimeter attack surface through active edge WAF layers (Cloudflare, AWS WAF, Akamai) to assess edge filtering rules.
               </p>
             </div>
 
@@ -432,13 +439,13 @@ export const NewScanScreen: React.FC<NewScanScreenProps> = ({
               }`}
             >
               <div className="flex items-center justify-between">
-                <span className="font-bold text-white text-xs">Direct Origin / Allowlisted Scan</span>
+                <span className="font-bold text-white text-xs">5. Direct Origin / Allowlisted Scan</span>
                 <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-purple-500/10 text-purple-400 border border-purple-500/30">
-                  Authorized Audit
+                  Bypassing WAF
                 </span>
               </div>
               <p className="mt-2 text-xs text-[#A0A0B0] leading-relaxed">
-                Applies scanner allowlisting headers to audit underlying origin server logic directly without edge masking.
+                Bypassing the WAF: Injects scanner allowlisting headers to audit underlying origin server logic and raw backend configurations without edge masking.
               </p>
             </div>
           </div>

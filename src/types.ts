@@ -60,6 +60,8 @@ export interface ScanSections {
   sslTls: FindingItem[];
   httpsRedirect: FindingItem[];
   robotsTxt: FindingItem[];
+  premiumChecks?: FindingItem[];
+  perimeterRouting?: FindingItem[];
 }
 
 export interface ScanResult {
@@ -70,6 +72,11 @@ export interface ScanResult {
   score: number;
   grade: 'A+' | 'A' | 'B' | 'C' | 'D' | 'F';
   scanType: 'quick' | 'full' | 'stealth';
+  wafStrategy: 'through-waf' | 'allowlist-origin';
+  scanTypeName?: string;
+  wafStrategyName?: string;
+  isThroughWaf?: boolean;
+  httpStatus?: number;
   counts: {
     pass: number;
     warn: number;
@@ -80,6 +87,21 @@ export interface ScanResult {
   sslDetails?: SslDetails;
   triggeredAlerts: TriggeredAlert[];
   thresholdsUsed: AlertThresholds;
+  collectedEvidence?: FindingEvidenceItem[];
+}
+
+export interface FindingEvidenceItem {
+  id: string;
+  findingId?: string;
+  title: string;
+  category: string;
+  severity: SeverityLevel;
+  evidenceType: 'RAW_HEADER' | 'CURL_POC' | 'SSL_HANDSHAKE' | 'CONFIG_LEAK';
+  rawOutput: string;
+  reproductionCommand?: string;
+  description: string;
+  isCollected: boolean;
+  timestamp?: string;
 }
 
 export interface RemediationSnippet {
@@ -94,6 +116,7 @@ export interface RemediationGuide {
   threatDescription: string;
   steps: string[];
   snippets: RemediationSnippet[];
+  shellSnippet?: string;
 }
 
 export interface AiRemediationReport {
@@ -101,6 +124,8 @@ export interface AiRemediationReport {
   riskRating: 'CRITICAL' | 'HIGH' | 'MODERATE' | 'LOW';
   keyThreats: string[];
   guides: RemediationGuide[];
+  shellScript?: string;
+  evidenceItems?: FindingEvidenceItem[];
   generatedAt: string;
   modelUsed: string;
 }

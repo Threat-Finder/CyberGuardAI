@@ -180,6 +180,24 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
                 <div className="text-sm font-bold text-[var(--text-heading)] font-mono truncate" title={currentScan.url}>
                   {currentScan.url}
                 </div>
+                <div className="flex items-center gap-2 flex-wrap mt-1">
+                  <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-[#1c1b2f] text-[#B794F6] border border-[#B794F6]/40">
+                    {currentScan.scanType === 'quick'
+                      ? '1. Quick Scan'
+                      : currentScan.scanType === 'stealth'
+                      ? '3. Stealth Mode (Premium)'
+                      : '2. Full Assessment'}
+                  </span>
+                  <span className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold border ${
+                    currentScan.wafStrategy === 'allowlist-origin'
+                      ? 'bg-purple-500/10 text-purple-400 border-purple-500/30'
+                      : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
+                  }`}>
+                    {currentScan.wafStrategy === 'allowlist-origin'
+                      ? '5. Direct Origin (Bypass WAF)'
+                      : '4. Through WAF (Standard)'}
+                  </span>
+                </div>
               </div>
             </div>
 

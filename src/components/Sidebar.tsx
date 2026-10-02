@@ -7,7 +7,6 @@ import {
   Sliders,
   Zap,
   LogOut,
-  UserCheck,
 } from 'lucide-react';
 import { CyberGuardLogo } from './CyberGuardLogo.js';
 import { ThemeToggle } from './ThemeToggle.js';
@@ -141,30 +140,18 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
       <div className="p-4 border-t border-[var(--sidebar-border)] space-y-3">
         {onLogout && (
-          <div className="p-2.5 rounded-xl bg-[var(--subtle-bg)] border border-[var(--sidebar-border)] flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2 overflow-hidden">
-              <div className="w-7 h-7 rounded-lg bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400 shrink-0">
-                <UserCheck className="w-3.5 h-3.5" />
-              </div>
-              <div className="overflow-hidden">
-                <div className="text-xs font-bold text-[var(--text-heading)] truncate">
-                  {adminUsername || 'Admin'}
-                </div>
-                <div className="text-[10px] text-emerald-400 font-mono truncate">
-                  Sec Administrator
-                </div>
-              </div>
-            </div>
-
-            <button
-              id="sidebar-admin-logout-btn"
-              onClick={onLogout}
-              className="p-1.5 rounded-lg text-[var(--text-body)] hover:text-red-400 hover:bg-red-500/10 transition-colors cursor-pointer shrink-0"
-              title="Sign Out of Admin Console"
-            >
-              <LogOut className="w-3.5 h-3.5" />
-            </button>
-          </div>
+          <button
+            id="sidebar-admin-logout-btn"
+            onClick={onLogout}
+            className="w-full flex items-center justify-between px-3.5 py-2 rounded-xl text-xs font-semibold text-[var(--text-body)] hover:text-red-400 hover:bg-red-500/10 border border-[var(--sidebar-border)] transition-colors cursor-pointer"
+            title="Sign Out of Console"
+          >
+            <span className="flex items-center gap-2">
+              <LogOut className="w-3.5 h-3.5 text-red-400" />
+              <span>Sign Out</span>
+            </span>
+            <span className="text-[10px] font-mono text-[var(--text-body)] opacity-60">End Session</span>
+          </button>
         )}
 
         <ThemeToggle

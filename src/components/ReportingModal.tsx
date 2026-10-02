@@ -12,6 +12,9 @@ import {
   Flame,
   FileEdit,
   FileType,
+  ExternalLink,
+  FileCheck2,
+  Terminal,
 } from 'lucide-react';
 import type {
   ScanResult,
@@ -20,6 +23,7 @@ import type {
   ScanAnnotations,
 } from '../types.js';
 import { calculateThreatVectors } from '../utils/threatHeatmap.js';
+import { generateReportHtml } from '../utils/reportTemplate.js';
 
 interface ReportingModalProps {
   isOpen: boolean;
@@ -41,6 +45,8 @@ export const ReportingModal: React.FC<ReportingModalProps> = ({
   const [includeThresholds, setIncludeThresholds] = useState(true);
   const [includeHeatmap, setIncludeHeatmap] = useState(true);
   const [includeAnnotations, setIncludeAnnotations] = useState(true);
+  const [includeEvidence, setIncludeEvidence] = useState(true);
+  const [includeShellScript, setIncludeShellScript] = useState(true);
 
   const [isExportingHtml, setIsExportingHtml] = useState(false);
   const [isExportingWord, setIsExportingWord] = useState(false);
@@ -58,27 +64,29 @@ export const ReportingModal: React.FC<ReportingModalProps> = ({
   const fileNameBase = `Security_Assessment_${domain}_${new Date().toISOString().slice(0, 10)}`;
   const threatVectors = calculateThreatVectors(currentScan);
 
-  const handleDownloadHtml = async () => {
+  const getReportHtmlString = () => {
+    const collectedEvidence = includeEvidence
+      ? (aiReport?.evidenceItems ? aiReport.evidenceItems.filter((e) => e.isCollected) : currentScan.collectedEvidence || [])
+      : [];
+
+    return generateReportHtml({
+      scanResult: currentScan,
+      aiAnalysis: includeAi ? (includeShellScript ? aiReport : (aiReport ? { ...aiReport, shellScript: undefined } : null)) : null,
+      annotations: includeAnnotations ? annotations : null,
+      threatVectors: includeHeatmap ? threatVectors : null,
+      collectedEvidence,
+    });
+  };
+
+  const handleDownloadHtml = () => {
     setIsExportingHtml(true);
     try {
-      const response = await fetch('/api/reports/html', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          scanResult: currentScan,
-          aiAnalysis: includeAi ? aiReport : null,
-          annotations: includeAnnotations ? annotations : null,
-          threatVectors: includeHeatmap ? threatVectors : null,
-        }),
-      });
-
-      if (!response.ok) throw new Error('Report generation failed');
-
-      const blob = await response.blob();
+      const htmlContent = getReportHtmlString();
+      const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' });
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `Security_Report_${domain}.html`;
+      a.download = `Security_Assessment_${domain}.html`;
       document.body.appendChild(a);
       a.click();
       a.remove();
@@ -90,23 +98,15 @@ export const ReportingModal: React.FC<ReportingModalProps> = ({
     }
   };
 
-  const handleDownloadWord = async () => {
+  const handleDownloadWord = () => {
     setIsExportingWord(true);
     try {
-      const response = await fetch('/api/reports/word', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          scanResult: currentScan,
-          aiAnalysis: includeAi ? aiReport : null,
-          annotations: includeAnnotations ? annotations : null,
-          threatVectors: includeHeatmap ? threatVectors : null,
-        }),
-      });
+      const htmlContent = getReportHtmlString();
+      const wordContent = `<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+${htmlContent}
+</html>`;
 
-      if (!response.ok) throw new Error('Word generation failed');
-
-      const blob = await response.blob();
+      const blob = new Blob([wordContent], { type: 'application/msword' });
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -122,10 +122,37 @@ export const ReportingModal: React.FC<ReportingModalProps> = ({
     }
   };
 
-  const handleDownloadPdf = async () => {
+  const handleDownloadPdf = () => {
     setIsGeneratingPdf(true);
     try {
-      window.print();
+      const htmlContent = getReportHtmlString();
+
+      // Create an invisible iframe to print the exact HTML report format
+      const iframe = document.createElement('iframe');
+      iframe.style.position = 'fixed';
+      iframe.style.right = '0';
+      iframe.style.bottom = '0';
+      iframe.style.width = '0';
+      iframe.style.height = '0';
+      iframe.style.border = '0';
+      document.body.appendChild(iframe);
+
+      const doc = iframe.contentWindow?.document;
+      if (doc) {
+        doc.open();
+        doc.write(htmlContent);
+        doc.close();
+
+        setTimeout(() => {
+          iframe.contentWindow?.focus();
+          iframe.contentWindow?.print();
+          setTimeout(() => {
+            if (document.body.contains(iframe)) {
+              document.body.removeChild(iframe);
+            }
+          }, 2000);
+        }, 400);
+      }
     } catch (err) {
       console.error('Failed to print as PDF:', err);
     } finally {
@@ -133,13 +160,30 @@ export const ReportingModal: React.FC<ReportingModalProps> = ({
     }
   };
 
+  const handlePreviewReport = () => {
+    const htmlContent = getReportHtmlString();
+    const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' });
+    const url = window.URL.createObjectURL(blob);
+    window.open(url, '_blank');
+  };
+
   const handleDownloadJson = () => {
+    const isThroughWaf = currentScan.isThroughWaf !== undefined
+      ? currentScan.isThroughWaf
+      : currentScan.wafStrategy !== 'allowlist-origin';
+
     const reportData = {
       assessmentMeta: {
         target: currentScan.url,
         timestamp: currentScan.timestamp,
         score: currentScan.score,
         grade: currentScan.grade,
+        scanProfile: currentScan.scanTypeName || currentScan.scanType,
+        scanType: currentScan.scanType,
+        wafRouting: currentScan.wafStrategyName || (isThroughWaf ? 'VA Scan Through WAF (Standard Mode)' : 'Direct Origin / Allowlisted Scan (Bypassing WAF)'),
+        wafStrategy: currentScan.wafStrategy,
+        isThroughWaf,
+        wafStatus: isThroughWaf ? 'Through WAF (Standard Mode)' : 'Direct Origin / Allowlisted (Bypassing WAF)',
         tool: 'Cyber Guard - VAPT Dashboard',
       },
       counts: currentScan.counts,
@@ -150,6 +194,10 @@ export const ReportingModal: React.FC<ReportingModalProps> = ({
       sections: currentScan.sections,
       sslDetails: currentScan.sslDetails,
       aiRemediation: includeAi ? aiReport : undefined,
+      collectedEvidence: includeEvidence
+        ? (aiReport?.evidenceItems ? aiReport.evidenceItems.filter((e) => e.isCollected) : currentScan.collectedEvidence)
+        : undefined,
+      shellRemediationScript: includeShellScript ? aiReport?.shellScript : undefined,
     };
 
     const blob = new Blob([JSON.stringify(reportData, null, 2)], {
@@ -166,15 +214,39 @@ export const ReportingModal: React.FC<ReportingModalProps> = ({
   };
 
   const generateMarkdown = () => {
+    const isThroughWaf = currentScan.isThroughWaf !== undefined
+      ? currentScan.isThroughWaf
+      : currentScan.wafStrategy !== 'allowlist-origin';
+
+    const scanTypeTitle =
+      currentScan.scanType === 'quick'
+        ? 'Quick Scan (Simple basic scan)'
+        : currentScan.scanType === 'stealth'
+        ? 'Stealth Mode (Full Assessment + Premium Checks)'
+        : 'Full Assessment (Detailed scan)';
+
+    const wafRoutingTitle = isThroughWaf
+      ? 'VA Scan Through WAF (Standard Mode - Through WAF)'
+      : 'Direct Origin / Allowlisted Scan (Bypassing WAF)';
+
+    const evidenceList = includeEvidence
+      ? (aiReport?.evidenceItems ? aiReport.evidenceItems.filter((e) => e.isCollected) : currentScan.collectedEvidence || [])
+      : [];
+
     return `# Security Assessment & Vulnerability Audit
 **Target:** ${currentScan.url}  
 **Audit Timestamp:** ${new Date(currentScan.timestamp).toUTCString()}  
+**Scan Profile:** ${scanTypeTitle}  
+**Perimeter Routing:** ${wafRoutingTitle}  
+**WAF Inspection Status:** ${isThroughWaf ? 'Through WAF (Standard Mode Edge Inspection)' : 'Direct Origin Probing (WAF Bypassed)'}  
 **Overall Score:** ${currentScan.score}/100 (Grade ${currentScan.grade})  
 **Response Time:** ${currentScan.responseTimeMs}ms  
 
 ---
 
 ## Executive Risk Summary
+- **Scan Type Performed:** ${scanTypeTitle}
+- **Perimeter Mode:** ${wafRoutingTitle} (${isThroughWaf ? 'Through WAF' : 'Standard / Direct Origin Bypass'})
 - **Passed Controls:** ${currentScan.counts.pass}
 - **Warnings:** ${currentScan.counts.warn}
 - **Failures / Critical:** ${currentScan.counts.fail}
@@ -196,6 +268,33 @@ ${aiReport.executiveSummary}
 
 #### Key Attack Vectors
 ${aiReport.keyThreats.map((t) => `- ${t}`).join('\n')}
+`
+    : ''
+}
+
+${
+  evidenceList.length > 0
+    ? `## Verified Technical Evidence & Proof-of-Concept Artifacts (${evidenceList.length})
+${evidenceList
+  .map(
+    (ev) => `### [${ev.severity}] ${ev.title} (${ev.evidenceType} - ${ev.category})
+- **Description:** ${ev.description}
+${ev.reproductionCommand ? `- **Reproduction Command:** \`${ev.reproductionCommand}\`` : ''}
+${ev.rawOutput ? `\`\`\`
+${ev.rawOutput}
+\`\`\`` : ''}`
+  )
+  .join('\n\n')}
+`
+    : ''
+}
+
+${
+  includeShellScript && aiReport?.shellScript
+    ? `## Automated Shell Remediation Script (Bash / CLI Fix)
+\`\`\`bash
+${aiReport.shellScript}
+\`\`\`
 `
     : ''
 }
@@ -260,17 +359,35 @@ ${annotations?.findingAnnotations?.[f.id] ? `- **Triage:** [${annotations.findin
         </div>
 
         <div className="p-6 space-y-6 max-h-[75vh] overflow-y-auto">
-          <div className="p-4 rounded-xl bg-[var(--subtle-bg)] border border-[var(--sidebar-border)] flex items-center justify-between">
-            <div className="space-y-1">
+          <div className="p-4 rounded-xl bg-[var(--subtle-bg)] border border-[var(--sidebar-border)] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="space-y-1.5">
               <div className="text-xs font-semibold text-[var(--text-body)] uppercase tracking-wider">
                 Target Under Audit
               </div>
               <div className="font-bold text-[var(--text-heading)] text-sm font-mono">{currentScan.url}</div>
-              <div className="text-xs text-[var(--text-body)]">
-                Audited {new Date(currentScan.timestamp).toLocaleString()} • Latency {currentScan.responseTimeMs}ms
+              <div className="flex items-center gap-2 flex-wrap pt-1">
+                <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-[#1c1b2f] text-[#B794F6] border border-[#B794F6]/40">
+                  {currentScan.scanType === 'quick'
+                    ? '1. Quick Scan'
+                    : currentScan.scanType === 'stealth'
+                    ? '3. Stealth Mode (Premium)'
+                    : '2. Full Assessment'}
+                </span>
+                <span className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold border ${
+                  currentScan.wafStrategy === 'allowlist-origin'
+                    ? 'bg-purple-500/10 text-purple-400 border-purple-500/30'
+                    : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
+                }`}>
+                  {currentScan.wafStrategy === 'allowlist-origin'
+                    ? '5. Direct Origin (Bypass WAF)'
+                    : '4. Through WAF (Standard)'}
+                </span>
+                <span className="text-xs text-[var(--text-body)]">
+                  • {new Date(currentScan.timestamp).toLocaleTimeString()} • {currentScan.responseTimeMs}ms
+                </span>
               </div>
             </div>
-            <div className="text-right">
+            <div className="text-left sm:text-right shrink-0">
               <div className="text-xs font-semibold text-[var(--text-body)]">Score & Grade</div>
               <div className="text-2xl font-black text-[var(--text-heading)] font-mono">
                 {currentScan.score}{' '}
@@ -322,6 +439,32 @@ ${annotations?.findingAnnotations?.[f.id] ? `- **Triage:** [${annotations.findin
                 <span className="flex items-center gap-1.5 font-medium">
                   <Sparkles className="w-3.5 h-3.5 text-[var(--accent-purple)]" />
                   Gemini AI Threat Modeling & Guidance
+                </span>
+              </label>
+
+              <label className="flex items-center gap-2.5 text-xs text-[var(--text-heading)] cursor-pointer p-2.5 rounded-xl bg-[var(--subtle-bg)] border border-[var(--sidebar-border)]">
+                <input
+                  type="checkbox"
+                  checked={includeEvidence}
+                  onChange={(e) => setIncludeEvidence(e.target.checked)}
+                  className="rounded accent-[var(--accent-purple)] w-4 h-4"
+                />
+                <span className="flex items-center gap-1.5 font-medium">
+                  <FileCheck2 className="w-3.5 h-3.5 text-cyan-400" />
+                  Verified Technical Evidence & PoC Artifacts
+                </span>
+              </label>
+
+              <label className="flex items-center gap-2.5 text-xs text-[var(--text-heading)] cursor-pointer p-2.5 rounded-xl bg-[var(--subtle-bg)] border border-[var(--sidebar-border)]">
+                <input
+                  type="checkbox"
+                  checked={includeShellScript}
+                  onChange={(e) => setIncludeShellScript(e.target.checked)}
+                  className="rounded accent-[var(--accent-purple)] w-4 h-4"
+                />
+                <span className="flex items-center gap-1.5 font-medium">
+                  <Terminal className="w-3.5 h-3.5 text-purple-400" />
+                  Automated Shell Remediation Script (.sh)
                 </span>
               </label>
 
@@ -444,7 +587,15 @@ ${annotations?.findingAnnotations?.[f.id] ? `- **Triage:** [${annotations.findin
           </div>
         </div>
 
-        <div className="px-6 py-3.5 border-t border-[var(--sidebar-border)] bg-[var(--navbar-bg)] flex justify-end">
+        <div className="px-6 py-3.5 border-t border-[var(--sidebar-border)] bg-[var(--navbar-bg)] flex items-center justify-between">
+          <button
+            onClick={handlePreviewReport}
+            className="flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-bold text-[var(--accent-purple)] hover:text-white bg-[var(--accent-purple)]/10 hover:bg-[var(--accent-purple)]/20 border border-[var(--accent-purple)]/30 rounded-xl transition-colors cursor-pointer"
+            title="Preview executive report format in a new browser tab"
+          >
+            <ExternalLink className="w-3.5 h-3.5" />
+            <span>Preview Report</span>
+          </button>
           <button
             onClick={onClose}
             className="px-4 py-2 text-xs font-semibold text-[var(--text-body)] hover:text-[var(--text-heading)] hover:bg-[var(--subtle-bg)] rounded-xl transition-colors cursor-pointer"

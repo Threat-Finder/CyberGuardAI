@@ -79,13 +79,30 @@ export const HistoryScreen: React.FC<HistoryScreenProps> = ({
                       </span>
                     )}
                   </div>
-                  <div className="flex items-center gap-3 text-xs text-[#A0A0B0] mt-1">
+                  <div className="flex items-center gap-3 text-xs text-[#A0A0B0] mt-1 flex-wrap">
                     <span className="flex items-center gap-1">
                       <Clock className="w-3.5 h-3.5" />
                       {new Date(scan.timestamp).toLocaleString()}
                     </span>
                     <span>•</span>
                     <span className="font-mono">{scan.responseTimeMs}ms latency</span>
+                    <span>•</span>
+                    <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-[#1c1b2f] text-[#B794F6] border border-[#B794F6]/40">
+                      {scan.scanType === 'quick'
+                        ? '1. Quick Scan'
+                        : scan.scanType === 'stealth'
+                        ? '3. Stealth Mode'
+                        : '2. Full Assessment'}
+                    </span>
+                    <span className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold border ${
+                      scan.wafStrategy === 'allowlist-origin'
+                        ? 'bg-purple-500/10 text-purple-400 border-purple-500/30'
+                        : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
+                    }`}>
+                      {scan.wafStrategy === 'allowlist-origin'
+                        ? '5. Direct Origin'
+                        : '4. Through WAF'}
+                    </span>
                   </div>
                 </div>
               </div>

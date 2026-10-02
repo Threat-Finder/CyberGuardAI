@@ -10,6 +10,10 @@ import {
   ChevronRight,
   FileDown,
   Zap,
+  Shield,
+  EyeOff,
+  Radio,
+  Sparkles,
 } from 'lucide-react';
 import type { ScanResult, FindingItem, SeverityLevel, AiRemediationReport } from '../../types.js';
 import { enrichFindingWithCve } from '../../utils/cveMapping.js';
@@ -23,6 +27,7 @@ interface ResultsScreenProps {
   onOpenReporting: () => void;
   onOpenAnnotations?: () => void;
   onNavigate?: (screen: 'dashboard' | 'new-scan' | 'results' | 'history') => void;
+  onUpdateReport?: (updated: AiRemediationReport) => void;
 }
 
 export const ResultsScreen: React.FC<ResultsScreenProps> = ({
@@ -32,6 +37,7 @@ export const ResultsScreen: React.FC<ResultsScreenProps> = ({
   onGenerateAi,
   onOpenReporting,
   onNavigate,
+  onUpdateReport,
 }) => {
   const [severityFilter, setSeverityFilter] = useState<'ALL' | SeverityLevel>('ALL');
   const [searchTerm, setSearchTerm] = useState('');
@@ -64,6 +70,8 @@ export const ResultsScreen: React.FC<ResultsScreenProps> = ({
       ...(currentScan.sections.bannerDisclosure || []),
       ...(currentScan.sections.httpsRedirect || []),
       ...(currentScan.sections.robotsTxt || []),
+      ...(currentScan.sections.perimeterRouting || []),
+      ...(currentScan.sections.premiumChecks || []),
     ];
     return raw.map(enrichFindingWithCve);
   }, [currentScan]);
@@ -98,6 +106,10 @@ export const ResultsScreen: React.FC<ResultsScreenProps> = ({
   const medCount = allFindings.filter((f) => f.severity === 'MEDIUM').length;
   const lowCount = allFindings.filter((f) => f.severity === 'LOW' || f.status === 'PASS').length;
 
+  const isThroughWaf = currentScan.isThroughWaf !== undefined
+    ? currentScan.isThroughWaf
+    : currentScan.wafStrategy !== 'allowlist-origin';
+
   return (
     <div className="space-y-6">
       <div className="cyber-card rounded-2xl p-5 sm:p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -108,9 +120,28 @@ export const ResultsScreen: React.FC<ResultsScreenProps> = ({
               Vulnerability Findings & CVE Audit
             </h2>
           </div>
-          <p className="text-xs text-[#A0A0B0] mt-1">
-            Target: <span className="font-mono text-white font-semibold">{currentScan.url}</span> • Total checks evaluated: {allFindings.length}
-          </p>
+          <div className="flex items-center gap-2 flex-wrap text-xs text-[#A0A0B0] mt-1.5">
+            <span>Target: <strong className="font-mono text-white">{currentScan.url}</strong></span>
+            <span>•</span>
+            <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-[#1c1b2f] text-[#B794F6] border border-[#B794F6]/40">
+              {currentScan.scanType === 'quick'
+                ? '1. Quick Scan'
+                : currentScan.scanType === 'stealth'
+                ? '3. Stealth Mode (Premium Checks)'
+                : '2. Full Assessment'}
+            </span>
+            <span className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold border ${
+              !isThroughWaf
+                ? 'bg-purple-500/10 text-purple-400 border-purple-500/30'
+                : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
+            }`}>
+              {!isThroughWaf
+                ? '5. Direct Origin (Bypass WAF)'
+                : '4. Through WAF (Standard Mode)'}
+            </span>
+            <span>•</span>
+            <span>{allFindings.length} checks</span>
+          </div>
         </div>
 
         <div className="flex items-center gap-2.5 self-start sm:self-auto">
@@ -132,6 +163,69 @@ export const ResultsScreen: React.FC<ResultsScreenProps> = ({
             <FileDown className="w-4 h-4" />
             <span>Export Audit Deck</span>
           </button>
+        </div>
+      </div>
+
+      {/* Audit Profile & Perimeter Strategy Overview Card */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="cyber-card rounded-2xl p-4 sm:p-5 border border-[var(--panel-border)] bg-[var(--subtle-bg)] space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold uppercase tracking-wider text-[var(--text-body)] flex items-center gap-1.5">
+              {currentScan.scanType === 'quick' ? (
+                <Zap className="w-3.5 h-3.5 text-[#B794F6]" />
+              ) : currentScan.scanType === 'stealth' ? (
+                <EyeOff className="w-3.5 h-3.5 text-purple-400" />
+              ) : (
+                <Shield className="w-3.5 h-3.5 text-emerald-400" />
+              )}
+              <span>Audit Profile</span>
+            </span>
+            <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-[#1c1b2f] text-[#B794F6] border border-[#B794F6]/40">
+              {currentScan.scanTypeName || (currentScan.scanType === 'quick' ? 'Quick Scan' : currentScan.scanType === 'stealth' ? 'Stealth Mode' : 'Full Assessment')}
+            </span>
+          </div>
+          <p className="text-xs text-[var(--text-body)] leading-relaxed">
+            {currentScan.scanType === 'quick'
+              ? 'Fast perimeter check inspecting baseline HTTP response headers, immediate server banner exposure, and HTTPS upgrade.'
+              : currentScan.scanType === 'stealth'
+              ? 'Full Assessment including SSL certificates and all standard items, plus 3 Premium checks (DNSSEC & CAA, Ephemeral PFS, Subresource Integrity).'
+              : 'Deep multi-vector audit covering all defensive security headers, cookie security flags, full SSL/TLS certificates, and robots.txt hygiene.'}
+          </p>
+          {currentScan.scanType === 'stealth' && (
+            <div className="pt-2 border-t border-[var(--sidebar-border)] flex items-center gap-1.5 text-[11px] font-mono text-purple-400">
+              <Sparkles className="w-3 h-3 text-purple-400" />
+              <span>3 Premium Checks Active: DNSSEC/CAA • PFS ECDHE • SRI CDN</span>
+            </div>
+          )}
+        </div>
+
+        <div className={`cyber-card rounded-2xl p-4 sm:p-5 border ${
+          isThroughWaf ? 'border-emerald-500/30 bg-emerald-950/10' : 'border-purple-500/30 bg-purple-950/10'
+        } space-y-2`}>
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold uppercase tracking-wider text-[var(--text-body)] flex items-center gap-1.5">
+              <Radio className="w-3.5 h-3.5 text-[var(--accent-purple)]" />
+              <span>Perimeter WAF Strategy</span>
+            </span>
+            <span className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold border ${
+              isThroughWaf
+                ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
+                : 'bg-purple-500/15 text-purple-400 border-purple-500/30'
+            }`}>
+              {isThroughWaf ? '4. VA Scan Through WAF' : '5. Direct Origin / Allowlisted'}
+            </span>
+          </div>
+          <p className="text-xs text-[var(--text-body)] leading-relaxed">
+            {isThroughWaf
+              ? 'Through WAF (Standard Mode): External client traffic was routed through public reverse proxy/WAF layers (Cloudflare / AWS WAF / Akamai) to assess edge filtering rules and proxy defense.'
+              : 'Direct Origin / Allowlisted Scan (Bypassing WAF): Scanner allowlisting headers were injected to audit raw backend origin server configurations directly without edge proxy masking.'}
+          </p>
+          <div className="pt-2 border-t border-[var(--sidebar-border)] flex items-center gap-1.5 text-[11px] font-mono">
+            <span className={`w-2 h-2 rounded-full ${isThroughWaf ? 'bg-emerald-400' : 'bg-purple-400'}`} />
+            <span className={isThroughWaf ? 'text-emerald-300' : 'text-purple-300'}>
+              {isThroughWaf ? 'Status: Edge WAF Active & Filtering' : 'Status: Origin Audited (WAF Bypassed)'}
+            </span>
+          </div>
         </div>
       </div>
 
@@ -325,6 +419,7 @@ export const ResultsScreen: React.FC<ResultsScreenProps> = ({
         isLoading={isLoadingAi}
         onGenerate={onGenerateAi}
         currentScan={currentScan}
+        onUpdateReport={onUpdateReport}
       />
     </div>
   );

@@ -231,7 +231,11 @@ export default function App() {
     setHistory((prev) => prev.map((s) => (s.id === scan.id ? updated : s)));
   };
 
-  const handleStartScan = async (targetUrl: string, scanType: 'quick' | 'full' | 'stealth' = 'full') => {
+  const handleStartScan = async (
+    targetUrl: string,
+    scanType: 'quick' | 'full' | 'stealth' = 'full',
+    wafStrategy: 'through-waf' | 'allowlist-origin' = 'through-waf'
+  ) => {
     // 1. Enforce API requirement: Without active API no scan can be started
     setScanBlockedMessage(null);
     try {
@@ -251,19 +255,43 @@ export default function App() {
     }
 
     setIsScanning(true);
-    setScanPhase('1/5: Initializing socket & verifying TLS certificate...');
+    if (scanType === 'quick') {
+      setScanPhase('1/5: Initializing quick socket probe & baseline check...');
+    } else if (scanType === 'stealth') {
+      setScanPhase(`1/5: Initializing stealth probe (${wafStrategy === 'allowlist-origin' ? 'Bypassing WAF' : 'Through WAF'})...`);
+    } else {
+      setScanPhase('1/5: Initializing deep socket & verifying TLS certificate...');
+    }
 
     try {
       setTimeout(() => {
-        setScanPhase('2/5: Inspecting HTTP response headers & banners...');
+        if (scanType === 'quick') {
+          setScanPhase('2/5: Inspecting essential HTTP headers & server banners...');
+        } else if (scanType === 'stealth') {
+          setScanPhase('2/5: Full SSL/TLS certificate validity & ciphers audit...');
+        } else {
+          setScanPhase('2/5: Inspecting multi-vector headers & banner disclosures...');
+        }
       }, 400);
 
       setTimeout(() => {
-        setScanPhase('3/5: Auditing cookie security flags & redirect policies...');
+        if (scanType === 'quick') {
+          setScanPhase('3/5: Checking HTTPS port 80 to 443 upgrade policy...');
+        } else if (scanType === 'stealth') {
+          setScanPhase('3/5: Passive cookie security & robots.txt reconnaissance...');
+        } else {
+          setScanPhase('3/5: Auditing cookie security flags & redirect policies...');
+        }
       }, 800);
 
       setTimeout(() => {
-        setScanPhase('4/5: Evaluating against alert thresholds & CVE heuristic matching...');
+        if (scanType === 'quick') {
+          setScanPhase('4/5: Compiling baseline vulnerability indicators...');
+        } else if (scanType === 'stealth') {
+          setScanPhase('4/5: Executing 3 Premium Controls (DNSSEC/CAA, PFS ECDHE, SRI CDN)...');
+        } else {
+          setScanPhase('4/5: Evaluating alert thresholds & CVE heuristic matching...');
+        }
       }, 1200);
 
       const response = await fetch('/api/scan', {
@@ -276,6 +304,7 @@ export default function App() {
           url: targetUrl,
           thresholds,
           scanType,
+          wafStrategy,
         }),
       });
 
@@ -325,10 +354,25 @@ export default function App() {
       if (!response.ok) throw new Error('AI remediation failed');
       const data: AiRemediationReport = await response.json();
       setAiReport(data);
+      if (data.evidenceItems) {
+        const collected = data.evidenceItems.filter((e) => e.isCollected);
+        setCurrentScan((prev) => (prev ? { ...prev, collectedEvidence: collected } : prev));
+      }
     } catch (err) {
       console.error('AI remediation error:', err);
     } finally {
       setIsGeneratingAi(false);
+    }
+  };
+
+  const handleUpdateReport = (updated: AiRemediationReport) => {
+    setAiReport(updated);
+    if (updated.evidenceItems) {
+      const collected = updated.evidenceItems.filter((e) => e.isCollected);
+      setCurrentScan((prev) => (prev ? { ...prev, collectedEvidence: collected } : prev));
+      setHistory((prev) =>
+        prev.map((s) => (s.id === currentScan?.id ? { ...s, collectedEvidence: collected } : s))
+      );
     }
   };
 
@@ -475,6 +519,7 @@ export default function App() {
               onOpenReporting={() => setIsReportingModalOpen(true)}
               onOpenAnnotations={() => setIsAnnotationsModalOpen(true)}
               onNavigate={(s) => setCurrentScreen(s)}
+              onUpdateReport={handleUpdateReport}
             />
           )}
 
